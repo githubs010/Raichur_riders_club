@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Raichur Riders</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-container { max-width: 800px; margin: 4rem auto; padding: 2rem; }
+        .admin-section { margin-bottom: 3rem; background: var(--color-bg-panel); padding: 2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }
+        .admin-section h2 { margin-bottom: 1.5rem; color: var(--color-yellow); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem; }
+        .form-group { margin-bottom: 1.2rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; color: var(--color-text-secondary); }
+        .form-control { width: 100%; padding: 0.8rem; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 6px; font-family: var(--font-body); }
+        .btn-save { margin-top: 1rem; width: 100%; }
+        .success-msg { color: #4ade80; display: none; margin-top: 1rem; font-weight: bold; }
+        
+        /* Leaderboard preview in admin */
+        .leaderboard-list { margin-top: 1rem; list-style: none; }
+        .leaderboard-list li { background: rgba(255,255,255,0.05); padding: 0.8rem; border-radius: 6px; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .btn-del { background: var(--color-red); color: white; border: none; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; }
+        
+        /* Login Overlay */
+        .login-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(10,10,10,0.95), rgba(20,20,20,0.98)),
+                        repeating-conic-gradient(#222 0% 25%, transparent 0% 50%) 50% / 60px 60px;
+            background-color: #111;
+            z-index: 10000;
+            display: flex;
+            justify-content: flex-start; /* top left alignment */
+            align-items: flex-start;
+            padding: 3rem;
+            transition: opacity 0.5s fade;
+        }
+        .login-box {
+            background: var(--color-bg-panel, #1a1a1a);
+            border: 2px solid var(--color-yellow, #ffd700);
+            border-radius: 8px;
+            padding: 2.5rem;
+            width: 350px;
+            position: relative;
+            box-shadow: 10px 10px 30px rgba(0,0,0,0.8);
+            border-bottom: 4px solid var(--color-red, #ff3b3b);
+        }
+        .login-box::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 6px;
+            background: repeating-linear-gradient(45deg, #fff, #fff 10px, #000 10px, #000 20px);
+        }
+        .login-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+        .login-icon {
+            font-size: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Overlay -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-box">
+            <div class="login-header">
+                <span class="login-icon">🏍️</span>
+                <h2 style="color: var(--color-yellow, #ffd700); text-transform: uppercase; font-style: italic; letter-spacing: 1px; margin: 0;">Racing Admin</h2>
+            </div>
+            <p style="color: var(--color-text-secondary, #aaa); margin-bottom: 1.5rem; font-size: 0.9rem;">Start your engine to manage CMS.</p>
+            <div class="form-group">
+                <label>Rider ID (Username)</label>
+                <input type="text" id="login_user" class="form-control" placeholder="Enter username">
+            </div>
+            <div class="form-group">
+                <label>Ignition Key (Password)</label>
+                <input type="password" id="login_pass" class="form-control" placeholder="Enter password">
+            </div>
+            <button class="btn btn-primary btn-save" onclick="checkLogin()" style="background: var(--color-red, #ff3b3b); color: white; border: none; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Ignite & Login</button>
+            <p id="login_error" style="color: var(--color-red, #ff3b3b); margin-top: 1rem; display: none; font-weight: bold;">Incorrect Credentials!</p>
+        </div>
+    </div>
+    
+    <nav class="glass-header" style="position: static;">
+        <div class="nav-container">
+            <div class="logo">
+                <span class="logo-k">R</span><span class="logo-r">R</span><span class="logo-c">Admin</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">← Back to Site</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="admin-container">
+        <h1 style="margin-bottom: 2rem;">Site Management Dashboard</h1>
+        
+        <div id="status-message" class="success-msg">Data Saved Successfully!</div>
+
+        <!-- Event Settings -->
+        <div class="admin-section">
+            <h2>1. Upcoming Event & Countdown</h2>
+            <div class="form-group">
+                <label>Event Name</label>
+                <input type="text" id="ev_name" class="form-control" placeholder="e.g. Ride #28 to Shri Bettada Gavi">
+            </div>
+            <div class="form-group">
+                <label>Event Location</label>
+                <input type="text" id="ev_location" class="form-control" placeholder="e.g. Parle-G Toll (6:00 AM Meet-up)">
+            </div>
+            <div class="form-group">
+                <label>Event Date & Time</label>
+                <input type="datetime-local" id="ev_datetime" class="form-control">
+            </div>
+            <button class="btn btn-primary btn-save" onclick="saveEvent()">Save Event Details</button>
+        </div>
+        
+        <!-- General Info Settings -->
+        <div class="admin-section">
+            <h2>2. General Site Info</h2>
+            <div class="form-group">
+                <label>Main Title (Brand Name)</label>
+                <input type="text" id="gen_brand" class="form-control" placeholder="Raichur Riders">
+            </div>
+            <div class="form-group">
+                <label>Motto / Slogan</label>
+                <textarea id="gen_motto" class="form-control" rows="2" placeholder="Life is short, ride hard..."></textarea>
+            </div>
+            <button class="btn btn-primary btn-save" onclick="saveGeneral()">Save Info</button>
+        </div>
+
+        <!-- Race Panel -->
+        <div class="admin-section" style="border-color: var(--color-red);">
+            <h2>3. Race Lap Time Panel</h2>
+            <p style="color: var(--color-text-secondary); margin-bottom: 1rem;">Add racers here. They will appear on the homepage leaderboard.</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Racer Name</label>
+                    <input type="text" id="race_name" class="form-control" placeholder="e.g. Vikram S">
+                </div>
+                <div class="form-group">
+                    <label>Lap Time (MM:SS.ms)</label>
+                    <input type="text" id="race_time" class="form-control" placeholder="02:15.43">
+                </div>
+            </div>
+            <button class="btn btn-primary outlined btn-save" style="margin-top:0;" onclick="addRaceLap()">+ Add Lap Time</button>
+            
+            <ul class="leaderboard-list" id="admin-leaderboard">
+                <!-- Populated by JS -->
+            </ul>
+        </div>
+        
+        <div style="text-align:center; margin-top:2rem;">
+             <button class="btn btn-primary outlined" onclick="clearAllData()" style="color:red; border-color:red;">⚠️ Reset All Data to Defaults</button>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
