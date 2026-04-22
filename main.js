@@ -1,10 +1,12 @@
 // Default Fallback Data if admin hasn't configured anything
 const DEFAULT_DATA = {
-    event: {
-        name: "Shri Bettada Gavi Ranganatha Swamy Devasthana",
-        location: "Parle-G Toll (6:00 AM Meet-up)",
-        datetime: "2026-04-12T06:00"
-    },
+    events: [
+        {
+            name: "Shri Bettada Gavi Ranganatha Swamy Devasthana",
+            location: "Parle-G Toll (6:00 AM Meet-up)",
+            datetime: "2026-05-12T06:00"
+        }
+    ],
     general: {
         brand: "Kalyana Karnataka Riders",
         motto: '"Safety is greater than speed, friendship is more precious than the ride."'
@@ -31,11 +33,21 @@ const inflateDynamicData = () => {
     if (mottoEl) mottoEl.innerText = state.general.motto;
 
     // Event
-    const evNameEl = document.querySelector('.event-info h3');
-    if (evNameEl) evNameEl.innerText = state.event.name;
-    
-    const evLocEl = document.querySelector('.event-info p');
-    if (evLocEl) evLocEl.innerHTML = `<i class="fa-solid fa-map-pin"></i> ${state.event.location}`;
+    let activeEvent = null;
+    if (state.events && state.events.length > 0) {
+        const now = new Date().getTime();
+        activeEvent = state.events.find(e => new Date(e.datetime).getTime() > now) || state.events[state.events.length - 1];
+    } else if (state.event) {
+        activeEvent = state.event;
+    }
+
+    if (activeEvent) {
+        const evNameEl = document.querySelector('.event-info h3');
+        if (evNameEl) evNameEl.innerText = activeEvent.name;
+        
+        const evLocEl = document.querySelector('.event-info p');
+        if (evLocEl) evLocEl.innerHTML = `<i class="fa-solid fa-map-pin"></i> ${activeEvent.location}`;
+    }
 
     // Races
     const raceList = document.getElementById('main-leaderboard');
@@ -46,9 +58,10 @@ const inflateDynamicData = () => {
             let html = '';
             state.races.forEach((r, index) => {
                 let badge = index === 0 ? '🏆' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : '🏁'));
+                let cStr = r.color ? `color:${r.color}; text-shadow: 0 0 5px ${r.color}55;` : `color:var(--color-yellow);`;
                 html += `
                     <li style="display:flex; justify-content:space-between; padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                        <span style="font-size:1.1rem;"><strong>${badge} #${index+1}</strong> <span style="margin-left:10px; color:var(--color-yellow);">${r.name}</span></span>
+                        <span style="font-size:1.1rem;"><strong>${badge} #${index+1}</strong> <span style="margin-left:10px; font-weight: bold; ${cStr}">${r.name}</span></span>
                         <span style="font-size:1.2rem; font-family:var(--font-display); font-weight:800;">${r.time}</span>
                     </li>
                 `;
@@ -64,7 +77,17 @@ const inflateDynamicData = () => {
 // 2. Countdown Timer Configured dynamically
 const runCountdown = () => {
     const state = getState();
-    const eventTimestamp = new Date(state.event.datetime).getTime();
+    let evDate = null;
+    if (state.events && state.events.length > 0) {
+        const now = new Date().getTime();
+        const activeEvent = state.events.find(e => new Date(e.datetime).getTime() > now) || state.events[state.events.length - 1];
+        evDate = activeEvent.datetime;
+    } else if (state.event) {
+        evDate = state.event.datetime;
+    }
+    
+    if (!evDate) return;
+    const eventTimestamp = new Date(evDate).getTime();
     
     const timer = setInterval(() => {
         const currentTime = new Date().getTime();
@@ -134,4 +157,95 @@ document.addEventListener("DOMContentLoaded", () => {
     runCountdown();
     generateSpotlight();
     handleNavbar();
+    initMap();
+});
+
+// Interactive Map Logic
+const initMap = () => {
+    const mapEl = document.getElementById('event-map');
+    if (!mapEl) return;
+    
+    // Safety check for Leaflet presence
+    if (typeof L === 'undefined') return;
+
+    const state = getState();
+    let activeEvent = null;
+    if (state.events && state.events.length > 0) {
+        const now = new Date().getTime();
+        activeEvent = state.events.find(e => new Date(e.datetime).getTime() > now) || state.events[state.events.length - 1];
+    } else if (state.event) {
+        activeEvent = state.event;
+    }
+
+    // Default coords (Raichur roughly)
+    let startLat = 16.2008, startLng = 77.3621;
+    let endLat = 15.8398, endLng = 77.4042;
+
+    if (activeEvent) {
+        if (activeEvent.startCoords) {
+           const sc = activeEvent.startCoords.split(',');
+           if(sc.length === 2) { startLat = parseFloat(sc[0]); startLng = parseFloat(sc[1]); }
+        }
+        if (activeEvent.endCoords) {
+           const ec = activeEvent.endCoords.split(',');
+           if(ec.length === 2) { endLat = parseFloat(ec[0]); endLng = parseFloat(ec[1]); }
+        }
+    }
+
+    const map = L.map('event-map', { zoomControl: false }).setView([startLat, startLng], 10);
+    
+    // Premium Dark Theme using CartoDB Dark Matter tiles
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        maxZoom: 20
+    }).addTo(map);
+
+    // Calculate Best Road Route
+    if (typeof L.Routing !== 'undefined') {
+        const routeControl = L.Routing.control({
+            waypoints: [
+                L.latLng(startLat, startLng),
+                L.latLng(endLat, endLng)
+            ],
+            lineOptions: {
+                styles: [{color: 'var(--color-red, #E6192B)', opacity: 0.8, weight: 5, dashArray: '10, 10'}]
+            },
+            router: L.Routing.osrmv1({
+                serviceUrl: 'https://router.project-osrm.org/route/v1'
+            }),
+            createMarker: function(i, wp, nWps) {
+                const color = i === 0 ? 'var(--color-yellow, #FFD700)' : 'var(--color-red, #E6192B)';
+                const label = i === 0 ? "Start Line" : "Finish Line";
+                return L.circleMarker(wp.latLng, {
+                    color: color, fillColor: color, fillOpacity: 1, radius: 8
+                }).bindPopup(`<b>${label}</b>`);
+            },
+            show: false, // Don't show turn-by-turn panel
+            addWaypoints: false,
+            draggableWaypoints: false,
+            fitSelectedRoutes: true,
+            showAlternatives: false
+        }).addTo(map);
+        
+        // Hide the white instruction UI that the plugin adds by default
+        setTimeout(() => {
+            const rc = document.querySelector('.leaflet-routing-container');
+            if(rc) rc.style.display = 'none';
+        }, 500);
+    } else {
+        // Fallback to straight line if routing machine fails
+        L.polyline([[startLat, startLng], [endLat, endLng]], { color: '#E6192B', weight: 4 }).addTo(map);
+        map.fitBounds([[startLat, startLng], [endLat, endLng]], { padding: [50, 50] });
+    }
+
+    // Add custom zoom controls to bottom right
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+}
+
+// Live update listener: listen for data changes from the Admin Panel and reflect them instantly!
+window.addEventListener('storage', (e) => {
+    if (e.key === 'rr_club_data') {
+        inflateDynamicData();
+        // The event and leaderboard will instantly refresh without reloading the page.
+    }
 });

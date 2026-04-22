@@ -103,7 +103,7 @@
 
         <!-- Event Settings -->
         <div class="admin-section">
-            <h2>1. Upcoming Event & Countdown</h2>
+            <h2>1. Upcoming Events Stack</h2>
             <div class="form-group">
                 <label>Event Name</label>
                 <input type="text" id="ev_name" class="form-control" placeholder="e.g. Ride #28 to Shri Bettada Gavi">
@@ -116,7 +116,21 @@
                 <label>Event Date & Time</label>
                 <input type="datetime-local" id="ev_datetime" class="form-control">
             </div>
-            <button class="btn btn-primary btn-save" onclick="saveEvent()">Save Event Details</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Start Coordinates (Lat, Lng)</label>
+                    <input type="text" id="ev_start_coords" class="form-control" placeholder="16.2008, 77.3621">
+                </div>
+                <div class="form-group">
+                    <label>Finish Coordinates (Lat, Lng)</label>
+                    <input type="text" id="ev_end_coords" class="form-control" placeholder="15.8398, 77.4042">
+                </div>
+            </div>
+            <button class="btn btn-primary btn-save" onclick="addEvent()">+ Add Event</button>
+            
+            <ul class="leaderboard-list" id="admin-events-list">
+                <!-- Populated by JS -->
+            </ul>
         </div>
         
         <!-- General Info Settings -->
@@ -136,19 +150,28 @@
         <!-- Race Panel -->
         <div class="admin-section" style="border-color: var(--color-red);">
             <h2>3. Race Lap Time Panel</h2>
-            <p style="color: var(--color-text-secondary); margin-bottom: 1rem;">Add racers here. They will appear on the homepage leaderboard.</p>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <p style="color: var(--color-text-secondary); margin-bottom: 1rem;">Add racers to the live track, record their stopwatch times, and save them to the leaderboard.</p>
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
                 <div class="form-group">
                     <label>Racer Name</label>
-                    <input type="text" id="race_name" class="form-control" placeholder="e.g. Vikram S">
+                    <input type="text" id="live_race_name" class="form-control" placeholder="e.g. Vikram S">
                 </div>
                 <div class="form-group">
-                    <label>Lap Time (MM:SS.ms)</label>
-                    <input type="text" id="race_time" class="form-control" placeholder="02:15.43">
+                    <label>Bike/Team Color</label>
+                    <input type="color" id="live_race_color" class="form-control" value="#FFD700" style="padding: 0.2rem; height: 46px; cursor: pointer;">
                 </div>
             </div>
-            <button class="btn btn-primary outlined btn-save" style="margin-top:0;" onclick="addRaceLap()">+ Add Lap Time</button>
+            <button class="btn btn-primary outlined btn-save" style="margin-top:0; border-color:var(--color-yellow); color:var(--color-yellow);" onclick="addLiveRacer()">+ Add Player to Start Line</button>
             
+            <div style="margin-top: 2rem; color: var(--color-text-secondary); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; padding: 0; border: none;">Live Track (Stopwatches)</h3>
+                <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: #22c55e; border: none;" onclick="startAllRacers()">🏁 Start All Racers</button>
+            </div>
+            <ul class="leaderboard-list" id="live-racers-list">
+                <!-- Populated by JS -->
+            </ul>
+
+            <h3 style="margin-top: 2rem; color: var(--color-text-secondary); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">Final Leaderboard</h3>
             <ul class="leaderboard-list" id="admin-leaderboard">
                 <!-- Populated by JS -->
             </ul>
