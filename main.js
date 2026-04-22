@@ -114,6 +114,23 @@ const inflateDynamicData = () => {
             noData.style.display = 'block';
         }
     }
+
+    // Gallery
+    const galleryContainer = document.getElementById('gallery-container');
+    if (galleryContainer && state.gallery && state.gallery.length > 0) {
+        let html = '';
+        state.gallery.forEach((g) => {
+            html += `
+            <div class="gallery-item glass-card" data-caption="${g.caption}">
+                <img src="${g.url}" alt="${g.caption}" loading="lazy" style="object-fit: cover;">
+                <div class="gallery-overlay">
+                    <span>${g.caption}</span>
+                </div>
+            </div>
+            `;
+        });
+        galleryContainer.innerHTML = html;
+    }
 }
 
 // 2. Countdown Timer Configured dynamically
@@ -202,6 +219,27 @@ const handleNavbar = () => {
     });
 }
 
+const syncCloudData = async () => {
+    const dbUrl = localStorage.getItem('rr_db_url');
+    if (dbUrl) {
+        try {
+            const res = await fetch(dbUrl);
+            const cloudData = await res.json();
+            
+            // If valid data from cloud differs from current state, update and re-render
+            const currentState = JSON.stringify(getState());
+            if (cloudData && cloudData.events && JSON.stringify(cloudData) !== currentState) {
+                localStorage.setItem('rr_club_data', JSON.stringify(cloudData));
+                inflateDynamicData();
+                runCountdown();
+                initMap();
+            }
+        } catch (e) {
+            console.log("Background cloud sync failed or not configured.");
+        }
+    }
+}
+
 // Initialize scripts
 document.addEventListener("DOMContentLoaded", () => {
     inflateDynamicData();
@@ -209,6 +247,9 @@ document.addEventListener("DOMContentLoaded", () => {
     generateSpotlight();
     handleNavbar();
     initMap();
+    
+    // Attempt cloud sync in the background
+    syncCloudData();
 });
 
 // Interactive Map Logic

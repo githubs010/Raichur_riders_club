@@ -216,6 +216,16 @@
             <button class="btn btn-primary btn-save" onclick="saveGeneral()">Save Info</button>
         </div>
 
+        <!-- Database Connection Settings -->
+        <div class="admin-section" style="border-color: #4ade80;">
+            <h2>🔌 Cloud Database (Google Sheets)</h2>
+            <p style="color: var(--color-text-secondary); margin-bottom: 1rem;">Paste your Google Apps Script Web App URL here to sync data to the cloud permanently.</p>
+            <div class="form-group">
+                <input type="text" id="db_url" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
+            </div>
+            <button class="btn btn-primary btn-save" style="background: #4ade80; color: black;" onclick="saveDbUrl()">Connect & Sync Database</button>
+        </div>
+
         <!-- Race Panel -->
         <div class="admin-section" style="border-color: var(--color-red);">
             <h2>3. Race Lap Time Panel</h2>

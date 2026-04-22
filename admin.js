@@ -31,7 +31,8 @@ const DEFAULT_DATA = {
         brand: "Kalyana Karnataka Riders",
         motto: '"Safety is greater than speed, friendship is more precious than the ride."'
     },
-    races: []
+    races: [],
+    gallery: []
 };
 
 // Initialize State
@@ -40,6 +41,7 @@ if (state.event && (!state.events || state.events.length === 0)) {
     state.events = [{ id: Date.now(), name: state.event.name, location: state.event.location, datetime: state.event.datetime }];
 }
 if (!state.events) state.events = [];
+if (!state.gallery) state.gallery = [];
 
 // Load inputs on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -54,17 +56,20 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.style.overflow = 'auto';
     }
 
-    // Events
-    renderEvents();
-    
     // General
     document.getElementById('gen_brand').value = state.general.brand;
     document.getElementById('gen_motto').value = state.general.motto;
     
-    renderLeaderboard();
+    // DB URL
+    const elDb = document.getElementById('db_url');
+    if (elDb) elDb.value = localStorage.getItem('rr_db_url') || '';
     
-    // Initialize Map Picker
+    renderLeaderboard();
+    if(typeof renderGallery !== 'undefined') renderGallery();
+    
+    // Initialize Map Picker & Sync Data
     setTimeout(initAdminMap, 300);
+    syncCloudData();
 });
 
 const showSuccess = () => {
@@ -451,8 +456,110 @@ const renderLeaderboard = () => {
     });
 }
 
-const saveState = () => {
+const saveState = async () => {
     localStorage.setItem('rr_club_data', JSON.stringify(state));
+    
+    // Cloud sync logic
+    const dbUrl = localStorage.getItem('rr_db_url');
+    if (dbUrl) {
+        try {
+            await fetch(dbUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(state)
+            });
+        } catch(e) {
+            console.error("Cloud push failed", e);
+        }
+    }
+}
+
+window.saveDbUrl = () => {
+    const url = document.getElementById('db_url').value.trim();
+    localStorage.setItem('rr_db_url', url);
+    if(url) saveState(); // Pushes data to the new DB instantly
+    showSuccess();
+}
+
+const syncCloudData = async () => {
+    const dbUrl = localStorage.getItem('rr_db_url');
+    if (dbUrl) {
+        try {
+            const res = await fetch(dbUrl);
+            const cloudData = await res.json();
+            
+            // Only update if cloud has valid events data and is different
+            if (cloudData && cloudData.events && JSON.stringify(cloudData) !== JSON.stringify(state)) {
+                state = cloudData;
+                localStorage.setItem('rr_club_data', JSON.stringify(state));
+                
+                // Rerender UI
+                document.getElementById('gen_brand').value = state.general.brand;
+                document.getElementById('gen_motto').value = state.general.motto;
+                renderEvents();
+                renderLeaderboard();
+                if(typeof renderGallery !== 'undefined') renderGallery();
+            }
+        } catch(e) { console.error("Cloud sync failed", e); }
+    }
+}
+
+// 4. Gallery Logic
+window.addGalleryImage = () => {
+    let url = document.getElementById('gal_url').value.trim();
+    const caption = document.getElementById('gal_caption').value.trim();
+    
+    if(!url || !caption) return alert("Please provide both an image URL and a caption.");
+    
+    // Smart Google Drive Link Converter
+    if (url.includes('drive.google.com/file/d/')) {
+        const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) {
+            const fileId = match[1];
+            url = `https://drive.google.com/uc?export=view&id=${fileId}`;
+        }
+    } else if (url.includes('drive.google.com/open?id=')) {
+        const match = url.match(/id=([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) {
+            const fileId = match[1];
+            url = `https://drive.google.com/uc?export=view&id=${fileId}`;
+        }
+    }
+    
+    if(!state.gallery) state.gallery = [];
+    state.gallery.push({ id: Date.now(), url: url, caption: caption });
+    saveState();
+    if(typeof renderGallery !== 'undefined') renderGallery();
+    
+    document.getElementById('gal_url').value = '';
+    document.getElementById('gal_caption').value = '';
+}
+
+window.deleteGalleryImage = (id) => {
+    state.gallery = state.gallery.filter(g => g.id !== id);
+    saveState();
+    if(typeof renderGallery !== 'undefined') renderGallery();
+}
+
+const renderGallery = () => {
+    const list = document.getElementById('admin-gallery-list');
+    if(!list) return;
+    list.innerHTML = '';
+    
+    if(!state.gallery) return;
+    state.gallery.forEach((g) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <div style="flex-grow:1; display:flex; align-items:center; gap: 15px;">
+                <img src="${g.url}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2);">
+                <div>
+                    <strong>${g.caption}</strong><br>
+                    <a href="${g.url}" target="_blank" style="font-size:0.75rem; color:#60a5fa; text-decoration:none;">View Source Link</a>
+                </div>
+            </div>
+            <button class="btn-del" onclick="deleteGalleryImage(${g.id})">Del</button>`;
+        list.appendChild(li);
+    });
 }
 
 window.clearAllData = () => {
