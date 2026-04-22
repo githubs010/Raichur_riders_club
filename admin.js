@@ -4,11 +4,27 @@ const DEFAULT_DATA = {
     events: [
         {
             id: 1,
-            name: "Shri Bettada Gavi Ranganatha Swamy Devasthana",
-            location: "Parle-G Toll (6:00 AM Meet-up)",
-            datetime: "2026-05-12T06:00",
+            name: "Raichur - Goa Weekend Ride",
+            location: "Parle-G Toll (5:00 AM Meet-up)",
+            datetime: "2026-05-12T05:00",
             startCoords: "16.2008, 77.3621",
-            endCoords: "15.8398, 77.4042"
+            endCoords: "15.2993, 74.1240"
+        },
+        {
+            id: 2,
+            name: "Heritage Ride: Hampi",
+            location: "Navodaya Medical College (6:00 AM)",
+            datetime: "2026-06-15T06:00",
+            startCoords: "16.2008, 77.3621",
+            endCoords: "15.3350, 76.4600"
+        },
+        {
+            id: 3,
+            name: "Hyderabad Night Ride",
+            location: "Raichur Railway Station (9:00 PM)",
+            datetime: "2026-07-20T21:00",
+            startCoords: "16.2008, 77.3621",
+            endCoords: "17.3850, 78.4867"
         }
     ],
     general: {
@@ -46,6 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('gen_motto').value = state.general.motto;
     
     renderLeaderboard();
+    
+    // Initialize Map Picker
+    setTimeout(initAdminMap, 300);
 });
 
 const showSuccess = () => {
@@ -76,7 +95,7 @@ window.addEvent = () => {
     const location = document.getElementById('ev_location').value.trim();
     const datetime = document.getElementById('ev_datetime').value;
     const startCoords = document.getElementById('ev_start_coords').value.trim() || '16.2008, 77.3621';
-    const endCoords = document.getElementById('ev_end_coords').value.trim() || '15.8398, 77.4042';
+    const endCoords = document.getElementById('ev_end_coords').value.trim() || '13.3786, 77.2550';
     
     if(!name || !location || !datetime) return alert("Please fill all event details.");
     
@@ -125,6 +144,162 @@ const renderEvents = () => {
         list.appendChild(li);
     });
 }
+
+// 1.5 Interactive Map Picker & Search
+let adminMap = null;
+let startMarker = null;
+let endMarker = null;
+let routeLine = null;
+let pickMode = 'end'; // 'start' or 'end'
+
+// Initial coordinate state
+let currentStart = [16.2008, 77.3621];
+let currentEnd = [13.3786, 77.2550];
+
+window.setPickMode = (mode) => {
+    pickMode = mode;
+    document.getElementById('btn_pick_start').style.background = mode === 'start' ? 'rgba(255,215,0,0.2)' : 'transparent';
+    document.getElementById('btn_pick_end').style.background = mode === 'end' ? 'rgba(230,25,43,0.2)' : 'transparent';
+};
+
+window.swapLocations = () => {
+    const startInput = document.getElementById('search_start');
+    const endInput = document.getElementById('search_end');
+    const tempText = startInput.value;
+    startInput.value = endInput.value;
+    endInput.value = tempText;
+    
+    const tempCoords = [...currentStart];
+    currentStart = [...currentEnd];
+    currentEnd = [...tempCoords];
+    
+    updateHiddenInputs();
+    updateAdminMapMarkers();
+};
+
+window.setSearchLoc = (target, text) => {
+    if(target === 'start') {
+        document.getElementById('search_start').value = text;
+        // Hardcode a few fast fallbacks for demo
+        if(text.includes('Raichur')) currentStart = [16.2008, 77.3621];
+    } else {
+        document.getElementById('search_end').value = text;
+        if(text.includes('Tumkur')) currentEnd = [13.3786, 77.2550];
+    }
+    updateHiddenInputs();
+    updateAdminMapMarkers();
+};
+
+window.searchAndPlot = async () => {
+    const startText = document.getElementById('search_start').value;
+    const endText = document.getElementById('search_end').value;
+    
+    const fetchCoords = async (query) => {
+        if(!query) return null;
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+            const data = await res.json();
+            if(data && data.length > 0) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+        } catch(e) { console.error("Search failed", e); }
+        return null;
+    };
+    
+    // Quick UX visual feedback
+    const btn = document.querySelector('button[onclick="searchAndPlot()"]');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Searching...';
+    
+    if(startText && !startText.includes('Raichur')) {
+        const coords = await fetchCoords(startText);
+        if(coords) currentStart = coords;
+    }
+    if(endText && !endText.includes('Tumkur')) {
+        const coords = await fetchCoords(endText);
+        if(coords) currentEnd = coords;
+    }
+    
+    btn.innerHTML = originalText;
+    updateHiddenInputs();
+    updateAdminMapMarkers();
+};
+
+const updateHiddenInputs = () => {
+    document.getElementById('ev_start_coords').value = `${currentStart[0].toFixed(4)}, ${currentStart[1].toFixed(4)}`;
+    document.getElementById('ev_end_coords').value = `${currentEnd[0].toFixed(4)}, ${currentEnd[1].toFixed(4)}`;
+};
+
+const initAdminMap = () => {
+    const mapEl = document.getElementById('admin-map');
+    if (!mapEl || typeof L === 'undefined') return;
+    
+    adminMap = L.map('admin-map', { zoomControl: false }).setView([16.2008, 77.3621], 6);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 18
+    }).addTo(adminMap);
+    
+    L.control.zoom({ position: 'bottomright' }).addTo(adminMap);
+    
+    // Reverse geocoding on click
+    adminMap.on('click', async (e) => {
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        
+        if (pickMode === 'start') {
+            currentStart = [lat, lng];
+            document.getElementById('search_start').value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            setPickMode('end');
+        } else {
+            currentEnd = [lat, lng];
+            document.getElementById('search_end').value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        }
+        updateHiddenInputs();
+        updateAdminMapMarkers();
+        
+        // Try to reverse geocode name
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+            const data = await res.json();
+            if(data && data.display_name) {
+                const shortName = data.display_name.split(',').slice(0,3).join(',');
+                if (pickMode === 'end') document.getElementById('search_start').value = shortName; // because it switched
+                else document.getElementById('search_end').value = shortName;
+            }
+        } catch(err){}
+    });
+    
+    updateAdminMapMarkers();
+    setPickMode('end');
+};
+
+const updateAdminMapMarkers = () => {
+    if (!adminMap) return;
+    
+    if (startMarker) adminMap.removeLayer(startMarker);
+    if (endMarker) adminMap.removeLayer(endMarker);
+    if (routeLine) adminMap.removeLayer(routeLine);
+    
+    const hasStart = !isNaN(currentStart[0]);
+    const hasEnd = !isNaN(currentEnd[0]);
+    
+    if (hasStart) {
+        startMarker = L.circleMarker(currentStart, { color: 'var(--color-yellow)', fillColor: 'var(--color-yellow)', fillOpacity: 1, radius: 8 }).addTo(adminMap).bindPopup("Starting Point");
+    }
+    
+    if (hasEnd) {
+        endMarker = L.circleMarker(currentEnd, { color: 'var(--color-red)', fillColor: 'var(--color-red)', fillOpacity: 1, radius: 8 }).addTo(adminMap).bindPopup("Destination");
+    }
+    
+    if (hasStart && hasEnd) {
+        // Draw route line
+        routeLine = L.polyline([currentStart, currentEnd], { color: '#3b82f6', weight: 4, dashArray: '10, 10' }).addTo(adminMap);
+        adminMap.fitBounds([currentStart, currentEnd], { padding: [50, 50] });
+    } else if (hasStart) {
+        adminMap.setView(currentStart, 10);
+    } else if (hasEnd) {
+        adminMap.setView(currentEnd, 10);
+    }
+};
 
 // 2. Save General
 window.saveGeneral = () => {

@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Kalyana Karnataka Riders</title>
-    <!-- Google Fonts -->
+    <!-- Google Fonts & Font Awesome -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <link rel="stylesheet" href="style.css">
     <style>
         .admin-container { max-width: 800px; margin: 4rem auto; padding: 2rem; }
@@ -116,17 +118,84 @@
                 <label>Event Date & Time</label>
                 <input type="datetime-local" id="ev_datetime" class="form-control">
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="form-group">
-                    <label>Start Coordinates (Lat, Lng)</label>
-                    <input type="text" id="ev_start_coords" class="form-control" placeholder="16.2008, 77.3621">
+            <div class="google-maps-planner" style="display: flex; height: 450px; background: #222; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); margin-top: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <!-- Left Sidebar -->
+                <div class="planner-sidebar" style="width: 340px; background: #1a1a1a; display: flex; flex-direction: column;">
+                    <div class="planner-header" style="padding: 15px; background: #2a2a2a; border-bottom: 1px solid #333;">
+                        <div style="display: flex; justify-content: space-between; color: #aaa; font-size: 1.2rem; margin-bottom: 15px; padding: 0 15px;">
+                            <i class="fa-solid fa-car" style="color: #4ade80; cursor: pointer;"></i>
+                            <i class="fa-solid fa-motorcycle" style="cursor: pointer; color: white;"></i>
+                            <i class="fa-solid fa-train-subway" style="cursor: pointer;"></i>
+                            <i class="fa-solid fa-person-walking" style="cursor: pointer;"></i>
+                            <i class="fa-solid fa-bicycle" style="cursor: pointer;"></i>
+                        </div>
+                        <div style="position: relative;">
+                            <!-- Dotted line connecting inputs -->
+                            <div style="position: absolute; left: 11px; top: 20px; height: 40px; border-left: 2px dotted #666; z-index: 0;"></div>
+                            
+                            <div style="display: flex; align-items: center; margin-bottom: 10px; z-index: 1; position: relative;">
+                                <i class="fa-regular fa-circle" style="color: #aaa; margin-right: 12px; font-size: 0.8rem; background: #2a2a2a;"></i>
+                                <input type="text" id="search_start" class="form-control" style="background: #111; border: 1px solid #444; border-radius: 6px; padding: 10px; flex:1;" placeholder="Choose starting point...">
+                            </div>
+                            
+                            <div style="display: flex; align-items: center; z-index: 1; position: relative;">
+                                <i class="fa-solid fa-location-dot" style="color: #ef4444; margin-right: 12px; font-size: 1rem; background: #2a2a2a;"></i>
+                                <input type="text" id="search_end" class="form-control" style="background: #111; border: 1px solid #444; border-radius: 6px; padding: 10px; flex:1;" placeholder="Choose destination...">
+                            </div>
+                            
+                            <button id="swap_btn" type="button" onclick="swapLocations()" style="position: absolute; right: -5px; top: 25px; background: #2a2a2a; border: none; color: #aaa; cursor: pointer; padding: 5px; font-size: 1.1rem; transition: color 0.2s;">
+                                <i class="fa-solid fa-arrow-right-arrow-left" style="transform: rotate(90deg);"></i>
+                            </button>
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="searchAndPlot()" style="width: 100%; margin-top: 15px; padding: 8px; background: #3b82f6; border: none;">
+                            <i class="fa-solid fa-magnifying-glass"></i> Search & Plot Route
+                        </button>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button type="button" class="btn btn-primary outlined" style="flex:1; border-color: var(--color-yellow); color: var(--color-yellow); padding:0.5rem; font-size:0.8rem;" onclick="setPickMode('start')" id="btn_pick_start">📍 Click Map Start</button>
+                            <button type="button" class="btn btn-primary outlined" style="flex:1; border-color: var(--color-red); color: var(--color-red); padding:0.5rem; font-size:0.8rem;" onclick="setPickMode('end')" id="btn_pick_end">🏁 Click Map End</button>
+                        </div>
+                    </div>
+                    <div class="planner-suggestions" style="flex: 1; overflow-y: auto; padding: 0;">
+                        <div class="suggestion-item" onclick="setSearchLoc('start', 'Raichur, Karnataka')" style="padding: 12px 15px; border-bottom: 1px solid #333; cursor: pointer; display: flex; align-items: center; gap: 15px; transition: background 0.2s;">
+                            <div style="background: rgba(255,255,255,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                                <i class="fa-solid fa-location-crosshairs" style="color: #60a5fa;"></i>
+                            </div>
+                            <div>
+                                <div style="color: #fff; font-weight: 500;">Your location</div>
+                                <div style="color: #aaa; font-size: 0.8rem;">Raichur, Karnataka</div>
+                            </div>
+                        </div>
+                        <div class="suggestion-item" onclick="setSearchLoc('start', 'Parle-G Toll, Raichur')" style="padding: 12px 15px; border-bottom: 1px solid #333; cursor: pointer; display: flex; align-items: center; gap: 15px; transition: background 0.2s;">
+                            <div style="background: rgba(255,255,255,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                                <i class="fa-solid fa-clock" style="color: #aaa;"></i>
+                            </div>
+                            <div>
+                                <div style="color: #fff; font-weight: 500;">Parle-G Toll Plaza</div>
+                                <div style="color: #aaa; font-size: 0.8rem;">Default Meeting Point</div>
+                            </div>
+                        </div>
+                        <div class="suggestion-item" onclick="setSearchLoc('end', 'Shri Bettada Gavi Ranganatha Swamy Temple, Tumkur')" style="padding: 12px 15px; border-bottom: 1px solid #333; cursor: pointer; display: flex; align-items: center; gap: 15px; transition: background 0.2s;">
+                            <div style="background: rgba(255,255,255,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                                <i class="fa-solid fa-clock" style="color: #aaa;"></i>
+                            </div>
+                            <div>
+                                <div style="color: #fff; font-weight: 500;">Bettada Gavi Temple</div>
+                                <div style="color: #aaa; font-size: 0.8rem;">Tumkur, Karnataka</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Finish Coordinates (Lat, Lng)</label>
-                    <input type="text" id="ev_end_coords" class="form-control" placeholder="15.8398, 77.4042">
-                </div>
+                
+                <!-- Right Map -->
+                <div id="admin-map" style="flex: 1; background: #111; position: relative;"></div>
             </div>
-            <button class="btn btn-primary btn-save" onclick="addEvent()">+ Add Event</button>
+
+            <!-- Hidden inputs to store actual coords for saving -->
+            <input type="hidden" id="ev_start_coords" value="16.2008, 77.3621">
+            <input type="hidden" id="ev_end_coords" value="13.3786, 77.2550">
+
+            <button class="btn btn-primary btn-save" onclick="addEvent()" style="font-size: 1.1rem; padding: 1rem;">+ Publish Event</button>
             
             <ul class="leaderboard-list" id="admin-events-list">
                 <!-- Populated by JS -->
@@ -176,12 +245,12 @@
                 <!-- Populated by JS -->
             </ul>
         </div>
-        
         <div style="text-align:center; margin-top:2rem;">
              <button class="btn btn-primary outlined" onclick="clearAllData()" style="color:red; border-color:red;">⚠️ Reset All Data to Defaults</button>
         </div>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="admin.js"></script>
 </body>
 </html>

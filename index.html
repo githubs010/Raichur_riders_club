@@ -47,31 +47,8 @@
             <p class="motto">"Safety is greater than speed, friendship is more precious than the ride."</p>
             <p class="motto-kannada">(ವೇಗಕ್ಕಿಂತ ಸುರಕ್ಷತೆ ದೊಡ್ಡದು, ರೈಡ್ಗಿಂತ ಸ್ನೇಹ ಅಮೂಲ್ಯ)</p>
             
-            <div class="event-card dynamic-glow">
-                <div class="event-info">
-                    <span class="tag">UPCOMING RIDE #28</span>
-                    <h3>Shri Bettada Gavi Ranganatha Swamy Devasthana</h3>
-                    <p><i class="fa-solid fa-map-pin"></i> Parle-G Toll (6:00 AM Meet-up)</p>
-                </div>
-                <div class="timer-container" id="countdown-timer">
-                    <!-- Timer populated by JS -->
-                    <div class="time-box">
-                        <span id="days">00</span>
-                        <label>DAYS</label>
-                    </div>
-                    <div class="time-box">
-                        <span id="hours">00</span>
-                        <label>HRS</label>
-                    </div>
-                    <div class="time-box">
-                        <span id="mins">00</span>
-                        <label>MIN</label>
-                    </div>
-                    <div class="time-box">
-                        <span id="secs">00</span>
-                        <label>SEC</label>
-                    </div>
-                </div>
+            <div id="hero-events-list" style="display: flex; gap: 20px; overflow-x: auto; overflow-y: hidden; padding: 20px 10px; max-width: 100vw; scroll-snap-type: x mandatory; margin-left: -10px; margin-right: -10px;">
+                <!-- Upcoming events populated dynamically by main.js -->
             </div>
     </header>
 
